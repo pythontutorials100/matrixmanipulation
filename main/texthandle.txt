@@ -1,275 +1,261 @@
-1. Ensure All Customer Names Are Shown on the Vertical Axis
-
-When plotting a large number of categories (customer names), Plotly might not display all labels by default to prevent overcrowding. We can adjust the figure's height to ensure all labels are visible.
-Code Modification
-
-python
-
-import plotly.express as px
-
-# Assuming 'df_top' contains all your data
-df_top = df.copy()
-
-# Sort data by 'total_revenue_gap' in descending order
-df_top = df_top.sort_values('total_revenue_gap', ascending=False)
-
-# Calculate height based on the number of customer names
-bar_height = 20  # Height of each bar in pixels
-max_height = 1000  # Maximum height in pixels
-height = min(max_height, bar_height * len(df_top))
-
-fig = px.bar(
-    df_top,
-    x='total_revenue_gap',
-    y='customer_name',
-    orientation='h',
-    labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name': 'Customer Name'},
-    title='Total Revenue Gap per Customer',
-    height=height  # Set the figure height
-)
-
-# Update layout to order y-axis labels by total_revenue_gap
-fig.update_layout(
-    yaxis={'categoryorder': 'total ascending'},
-    xaxis_tickformat='$,',  # Format x-axis labels as currency
-    yaxis_tickfont_size=10,  # Adjust y-axis font size if needed
-)
-
-fig.show()
-
-Explanation:
-
-    Dynamic Height Calculation: We calculate the figure's height based on the number of customers, ensuring that each bar has enough space.
-    height Parameter: Setting the height parameter in px.bar() adjusts the figure's height.
-    Adjusting Font Size: If labels are still overlapping, you can reduce the yaxis_tickfont_size.
-
-2. Adjust the Plot to Be More Vertical
-
-If you prefer a vertical bar chart, we can swap the axes.
-Code for Vertical Bar Chart
-
-python
-
-fig = px.bar(
-    df_top,
-    x='customer_name',
-    y='total_revenue_gap',
-    labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name': 'Customer Name'},
-    title='Total Revenue Gap per Customer',
-    height=600  # Adjust height as needed
-)
-
-# Update layout
-fig.update_layout(
-    xaxis={'categoryorder': 'total descending'},
-    yaxis_tickformat='$,',  # Format y-axis labels as currency
-    xaxis_tickangle=-45,    # Rotate x-axis labels if they are too long
-    xaxis_tickfont_size=10, # Adjust font size
-)
-
-fig.show()
-
-Explanation:
-
-    Orientation Change: By default, Plotly creates vertical bar charts. We removed the orientation='h' parameter.
-    Rotating Labels: For long customer names, rotating the x-axis labels helps prevent overlap.
-    Adjusting Height: Set an appropriate height for the figure.
-
-3. Open the Plot in a Different Window
-
-To view the plot in a separate browser window or tab, you can save the figure as an HTML file and open it in your web browser.
-Code to Save Plot as HTML and Open in Browser
-
-python
-
-# Save the figure as an HTML file
-fig.write_html('total_revenue_gap_per_customer.html')
-
-# Open the HTML file in the default web browser
-import webbrowser
-webbrowser.open('total_revenue_gap_per_customer.html')
-
-Note: This will save the interactive plot to an HTML file and open it in your default web browser, allowing for better interactivity and viewing experience.
-4. Improve Aesthetics and Interactivity
-
-Plotly allows for extensive customization. Here are some suggestions:
-
-    Add Hover Information: Include more details in the hover tooltip.
-    Customize Colors: Use color scales or specific colors.
-    Enhance Layout: Adjust margins, fonts, and backgrounds.
-    Enable Zoom and Pan: These are enabled by default in Plotly.
-
-Enhanced Code with Customizations
-
-python
-
-import plotly.express as px
-import plotly.io as pio
-import webbrowser
-
-# Set default template
-pio.templates.default = "plotly_white"
-
-# Create the bar chart
-fig = px.bar(
-    df_top,
-    x='customer_name' if 'customer_name' in df_top.columns else 'Customer Name',
-    y='total_revenue_gap',
-    labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name': 'Customer Name'},
-    title='Total Revenue Gap per Customer',
-    height=600
-)
-
-# Customize layout
-fig.update_layout(
-    xaxis={'categoryorder': 'total descending'},
-    yaxis_tickformat='$,',
-    xaxis_tickangle=-45,
-    xaxis_tickfont_size=10,
-    title_font_size=20,
-    plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
-    hovermode='x unified',
-    margin=dict(l=50, r=50, t=80, b=150),  # Adjust margins
-)
-
-# Add hover template for detailed information
-fig.update_traces(
-    hovertemplate='<b>%{x}</b><br>Total Revenue Gap: $%{y:,.2f}<extra></extra>',
-    marker_color='indianred'  # Customize bar color
-)
-
-# Save and open in browser
-fig.write_html('total_revenue_gap_per_customer.html')
-webbrowser.open('total_revenue_gap_per_customer.html')
-
-Explanation:
-
-    Template: Using plotly_white template for a clean look.
-    Transparent Background: Set plot_bgcolor to make the plot background transparent.
-    Hover Template: Customized hover information with detailed formatting.
-    Margins: Adjusted margins to prevent label cutoff.
-    Marker Color: Customized bar color.
-
-5. Handling Long Customer Names
-
-Long customer names can cause overlapping or cluttered x-axis labels. Here are some strategies:
-
-    Rotate Labels: We already rotated x-axis labels by -45 degrees.
-    Wrap Text: Plotly doesn't support automatic text wrapping, but we can manually insert line breaks.
-
-Inserting Line Breaks in Labels
-
-python
-
-# Function to insert line breaks into long customer names
-def wrap_labels(label):
-    return '<br>'.join(label.split())
-
-# Apply the function to the 'customer_name' column
-df_top['customer_name_wrapped'] = df_top['customer_name'].apply(wrap_labels)
-
-# Update the figure to use wrapped labels
-fig = px.bar(
-    df_top,
-    x='customer_name_wrapped',
-    y='total_revenue_gap',
-    labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name_wrapped': 'Customer Name'},
-    title='Total Revenue Gap per Customer',
-    height=600
-)
-
-# Rest of the code remains the same...
-
-Note: Be cautious with this approach, as it may not always produce the desired effect, especially if customer names are very long.
-6. Interactive Filtering and Sorting
-
-For large datasets, adding interactive filters can enhance usability.
-Using Plotly Dash (Advanced)
-
-If you want to create an interactive dashboard with filtering capabilities, consider using Plotly Dash.
-
-Here's a basic outline (not fully functional within a notebook):
-
-python
-
-# Install Dash if you haven't already
-!pip install dash
-
+import stardog
+import pandas as pd
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
+import plotly.express as px
 
-# Create a Dash app
-app = dash.Dash(__name__)
+# Connection details
+conn_details = {
+    'endpoint': 'http://localhost:5820',  # Replace with your Stardog endpoint
+    'username': 'admin',                  # Replace with your Stardog username
+    'password': 'admin'                   # Replace with your Stardog password
+}
 
-# Layout of the app
-app.layout = html.Div([
-    dcc.Dropdown(
-        id='customer-dropdown',
-        options=[{'label': name, 'value': name} for name in df_top['customer_name'].unique()],
-        multi=True,
-        placeholder='Select customers...'
-    ),
-    dcc.Graph(id='revenue-gap-graph')
-])
+database_name = 'your_database_name'  # Replace with your Stardog database name
 
-# Callback to update the graph
-@app.callback(
-    Output('revenue-gap-graph', 'figure'),
-    [Input('customer-dropdown', 'value')]
-)
-def update_graph(selected_customers):
-    if selected_customers is None or len(selected_customers) == 0:
-        filtered_df = df_top
-    else:
-        filtered_df = df_top[df_top['customer_name'].isin(selected_customers)]
+def execute_query(query, label_column):
+    with stardog.Connection(database_name, **conn_details) as conn:
+        results = conn.select(query)
     
+    data = results
+    variables = data['head']['vars']
+    bindings = data['results']['bindings']
+    rows = []
+
+    for binding in bindings:
+        row = {}
+        for var in variables:
+            if var in binding:
+                value = binding[var]['value']
+                # Convert numerical values
+                if binding[var]['type'] == 'literal' and 'datatype' in binding[var]:
+                    datatype = binding[var]['datatype']
+                    if datatype in (
+                        'http://www.w3.org/2001/XMLSchema#decimal',
+                        'http://www.w3.org/2001/XMLSchema#float',
+                        'http://www.w3.org/2001/XMLSchema#double',
+                        'http://www.w3.org/2001/XMLSchema#integer',
+                        'http://www.w3.org/2001/XMLSchema#int',
+                    ):
+                        value = float(value)
+                row[var] = value
+            else:
+                row[var] = None
+        rows.append(row)
+    
+    df = pd.DataFrame(rows)
+    df['total_revenue_gap'] = pd.to_numeric(df['total_revenue_gap'])
+    df = df.sort_values('total_revenue_gap', ascending=False)
+    return df
+
+def get_customer_data():
+    query = """
+    PREFIX : <http://api.stardog.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    SELECT ?customer_name (ROUND(SUM(?revenue_gap_value) * 1000) / 1000 AS ?total_revenue_gap)
+    WHERE {
+      # Retrieve the IBE that contains the customer name
+      ?ibe_cust :has_text_value ?customer_name .
+      ?designative_name_customer :generically_depends_on ?ibe_cust .
+      ?designative_name_customer :designates ?customer .
+      ?customer rdf:type :Customer_Organization .
+
+      # Retrieve the revenue gap associated with the customer
+      ?revenue_gap :is_about ?customer .
+
+      # Retrieve the measurement of the revenue gap
+      ?measurement :is_measurement_of ?revenue_gap .
+      ?measurement :generically_depends_on ?ibe_rev_gap_value .
+
+      # Get the revenue gap value
+      ?ibe_rev_gap_value :has_decimal_value ?revenue_gap_value_literal .
+      BIND(xsd:decimal(?revenue_gap_value_literal) AS ?revenue_gap_value)
+    }
+    GROUP BY ?customer_name
+    ORDER BY DESC(?total_revenue_gap)
+    """
+    return execute_query(query, 'customer_name')
+
+def get_aircraft_data():
+    query = """
+    PREFIX : <http://api.stardog.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    SELECT ?aircraft_model_name (ROUND(SUM(?revenue_gap_value) * 1000) / 1000 AS ?total_revenue_gap)
+    WHERE {
+      {
+        SELECT DISTINCT ?aircraft_model_name ?revenue_gap ?revenue_gap_value
+        WHERE {
+          # Ensure we're dealing with aircraft models
+          ?artifact_identifier_aircraft_model rdf:type :Designative_Information_Content_Entity .
+          ?artifact_identifier_aircraft_model :designates ?aircraft_model .
+          ?aircraft_model rdf:type :Artifact_Model .
+          ?artifact_identifier_aircraft_model :generically_depends_on ?ibe_aircraft_model .
+          ?ibe_aircraft_model :has_text_value ?aircraft_model_name .
+          FILTER(STRSTARTS(STR(?aircraft_model), STR(:aircraft_model_)))
+
+          # Aircraft model prescribes part aggregates
+          ?aircraft_model :prescribes ?part_aggregate .
+
+          # Part aggregate bears revenue gaps
+          ?part_aggregate :bearer_of ?revenue_gap .
+
+          # Retrieve the measurement of the revenue gap
+          ?measurement :is_measurement_of ?revenue_gap .
+          ?measurement :generically_depends_on ?ibe_rev_gap_value .
+
+          # Get the revenue gap value
+          ?ibe_rev_gap_value :has_decimal_value ?revenue_gap_value_literal .
+          BIND(xsd:decimal(?revenue_gap_value_literal) AS ?revenue_gap_value)
+        }
+      }
+    }
+    GROUP BY ?aircraft_model_name
+    ORDER BY DESC(?total_revenue_gap)
+    """
+    return execute_query(query, 'aircraft_model_name')
+
+def get_engine_data():
+    query = """
+    PREFIX : <http://api.stardog.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    SELECT ?engine_model_name (ROUND(SUM(?revenue_gap_value) * 1000) / 1000 AS ?total_revenue_gap)
+    WHERE {
+      {
+        SELECT DISTINCT ?engine_model_name ?revenue_gap ?revenue_gap_value
+        WHERE {
+          # Ensure we're dealing with engine models
+          ?artifact_identifier_engine_model rdf:type :Designative_Information_Content_Entity .
+          ?artifact_identifier_engine_model :designates ?engine_model .
+          ?engine_model rdf:type :Artifact_Model .
+          ?artifact_identifier_engine_model :generically_depends_on ?ibe_engine_model .
+          ?ibe_engine_model :has_text_value ?engine_model_name .
+          FILTER(STRSTARTS(STR(?engine_model), STR(:engine_model_)))
+
+          # Exclude "N/A" values
+          FILTER(?engine_model_name != "N/A" && ?engine_model_name != "")
+
+          # Engine model prescribes part aggregates
+          ?engine_model :prescribes ?part_aggregate .
+
+          # Part aggregate bears revenue gaps
+          ?part_aggregate :bearer_of ?revenue_gap .
+
+          # Retrieve the measurement of the revenue gap
+          ?measurement :is_measurement_of ?revenue_gap .
+          ?measurement :generically_depends_on ?ibe_rev_gap_value .
+
+          # Get the revenue gap value
+          ?ibe_rev_gap_value :has_decimal_value ?revenue_gap_value_literal .
+          BIND(xsd:decimal(?revenue_gap_value_literal) AS ?revenue_gap_value)
+        }
+      }
+    }
+    GROUP BY ?engine_model_name
+    ORDER BY DESC(?total_revenue_gap)
+    """
+    return execute_query(query, 'engine_model_name')
+
+def get_part_number_data():
+    query = """
+    PREFIX : <http://api.stardog.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    SELECT ?part_number (ROUND(SUM(?revenue_gap_value) * 1000) / 1000 AS ?total_revenue_gap)
+    WHERE {
+      {
+        SELECT DISTINCT ?part_number ?revenue_gap ?revenue_gap_value
+        WHERE {
+          # Ensure we're dealing with part models
+          ?artifact_identifier_part_model rdf:type :Designative_Information_Content_Entity .
+          ?artifact_identifier_part_model :designates ?part_model .
+          ?part_model rdf:type :Artifact_Model .
+          ?artifact_identifier_part_model :generically_depends_on ?ibe_part_model .
+          ?ibe_part_model :has_text_value ?part_number .
+          FILTER(STRSTARTS(STR(?part_model), STR(:part_model_)))
+
+          # Part model prescribes part aggregates
+          ?part_model :prescribes ?part_aggregate .
+
+          # Part aggregate bears revenue gaps
+          ?part_aggregate :bearer_of ?revenue_gap .
+
+          # Retrieve the measurement of the revenue gap
+          ?measurement :is_measurement_of ?revenue_gap .
+          ?measurement :generically_depends_on ?ibe_rev_gap_value .
+
+          # Get the revenue gap value
+          ?ibe_rev_gap_value :has_decimal_value ?revenue_gap_value_literal .
+          BIND(xsd:decimal(?revenue_gap_value_literal) AS ?revenue_gap_value)
+        }
+      }
+    }
+    GROUP BY ?part_number
+    ORDER BY DESC(?total_revenue_gap)
+    """
+    return execute_query(query, 'part_number')
+
+def create_bar_chart(df, label_column, title):
     fig = px.bar(
-        filtered_df,
-        x='customer_name',
+        df,
+        x=label_column,
         y='total_revenue_gap',
-        labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name': 'Customer Name'},
-        title='Total Revenue Gap per Customer'
+        labels={'total_revenue_gap': 'Total Revenue Gap', label_column: label_column.replace('_', ' ').title()},
+        title=title,
+    )
+    fig.update_traces(
+        text=df['total_revenue_gap'].apply(lambda x: f"${x:,.2f}"),
+        textposition='outside',
+        marker_color='indianred',
     )
     fig.update_layout(
-        xaxis={'categoryorder': 'total descending'},
+        xaxis_tickangle=-45,
         yaxis_tickformat='$,',
-        xaxis_tickangle=-45
+        uniformtext_minsize=8,
+        uniformtext_mode='hide',
+        plot_bgcolor='rgba(0,0,0,0)',
+        hovermode='x',
+        margin=dict(l=50, r=50, t=80, b=150),
     )
     return fig
 
-# Run the app
+app = dash.Dash(__name__)
+server = app.server  # For deployment
+
+app.layout = html.Div([
+    html.H1('Total Revenue Gap Analysis', style={'textAlign': 'center'}),
+    dcc.Tabs(id='tabs', value='customer', children=[
+        dcc.Tab(label='Customer-wise', value='customer'),
+        dcc.Tab(label='Aircraft-wise', value='aircraft'),
+        dcc.Tab(label='Engine-wise', value='engine'),
+        dcc.Tab(label='Part Number-wise', value='part_number'),
+    ]),
+    html.Div(id='tabs-content')
+])
+
+@app.callback(Output('tabs-content', 'children'),
+              Input('tabs', 'value'))
+def render_content(tab):
+    if tab == 'customer':
+        df = get_customer_data()
+        label_column = 'customer_name'
+        title = 'Total Revenue Gap per Customer'
+    elif tab == 'aircraft':
+        df = get_aircraft_data()
+        label_column = 'aircraft_model_name'
+        title = 'Total Revenue Gap per Aircraft Model'
+    elif tab == 'engine':
+        df = get_engine_data()
+        label_column = 'engine_model_name'
+        title = 'Total Revenue Gap per Engine Model'
+    elif tab == 'part_number':
+        df = get_part_number_data()
+        label_column = 'part_number'
+        title = 'Total Revenue Gap per Part Number'
+    else:
+        return html.Div('Tab not found.')
+    
+    fig = create_bar_chart(df, label_column, title)
+    return dcc.Graph(figure=fig)
+
 if __name__ == '__main__':
     app.run_server(debug=True)
-
-Note: Dash applications are run as standalone web apps and are not directly executed within a notebook cell. This approach requires running the script in a separate Python environment.
-
-#######################################################
-
-Applying These Changes to Other Queries
-
-You can apply similar modifications to your aircraft-wise, part number-wise, and engine-wise queries. Just replace the DataFrame df with the corresponding DataFrame for each query (e.g., df_aircraft, df_part_number, df_engine) and adjust the labels accordingly.
-
-Example for Aircraft-wise Data:
-
-python
-
-# Assume df_aircraft is your DataFrame for aircraft data
-
-# Sort data
-df_aircraft = df_aircraft.sort_values('total_revenue_gap', ascending=False)
-
-# Calculate dynamic height
-height = min(max_height, bar_height * len(df_aircraft))
-
-# Create the bar chart
-fig = px.bar(
-    df_aircraft,
-    x='aircraft_model_name',
-    y='total_revenue_gap',
-    labels={'total_revenue_gap': 'Total Revenue Gap', 'aircraft_model_name': 'Aircraft Model Name'},
-    title='Total Revenue Gap per Aircraft Model',
-    height=height
-)
-
-# Rest of the code remains the same...
