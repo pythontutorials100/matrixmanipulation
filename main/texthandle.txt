@@ -1,3 +1,7 @@
+Complete Updated Code
+
+python
+
 import stardog
 import pandas as pd
 import dash
@@ -195,41 +199,71 @@ def get_part_number_data():
     return execute_query(query, 'part_number')
 
 def create_bar_chart(df, label_column, title):
+    # Set default template
+    px.defaults.template = "plotly_white"
+    px.defaults.height = 600  # Adjust height as needed
+
+    # Create the horizontal bar chart
     fig = px.bar(
         df,
-        x=label_column,
-        y='total_revenue_gap',
+        x='total_revenue_gap',
+        y=label_column,
+        orientation='h',
         labels={'total_revenue_gap': 'Total Revenue Gap', label_column: label_column.replace('_', ' ').title()},
         title=title,
     )
+
+    # Customize layout
+    fig.update_layout(
+        yaxis={'categoryorder': 'total ascending'},
+        xaxis_tickformat='$,',
+        yaxis_tickfont_size=10,
+        title_font_size=20,
+        plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
+        hovermode='y unified',
+        margin=dict(l=200, r=50, t=80, b=50),  # Adjust margins to accommodate long labels
+    )
+
+    # Add hover template for detailed information
     fig.update_traces(
+        hovertemplate='<b>%{y}</b><br>Total Revenue Gap: $%{x:,.2f}<extra></extra>',
+        marker_color='indianred',  # Customize bar color
         text=df['total_revenue_gap'].apply(lambda x: f"${x:,.2f}"),
         textposition='outside',
-        marker_color='indianred',
+        textfont_size=10,
     )
-    fig.update_layout(
-        xaxis_tickangle=-45,
-        yaxis_tickformat='$,',
-        uniformtext_minsize=8,
-        uniformtext_mode='hide',
-        plot_bgcolor='rgba(0,0,0,0)',
-        hovermode='x',
-        margin=dict(l=50, r=50, t=80, b=150),
-    )
+
+    # Ensure text labels don't overlap
+    fig.update_traces(cliponaxis=False)
+    
     return fig
 
-app = dash.Dash(__name__)
+# External stylesheets (e.g., Bootstrap)
+external_stylesheets = [
+    'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css',
+    '/assets/styles.css'  # Reference to your custom CSS file
+]
+
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server  # For deployment
 
+app.title = "Total Revenue Gap Analysis"
+
 app.layout = html.Div([
-    html.H1('Total Revenue Gap Analysis', style={'textAlign': 'center'}),
-    dcc.Tabs(id='tabs', value='customer', children=[
-        dcc.Tab(label='Customer-wise', value='customer'),
-        dcc.Tab(label='Aircraft-wise', value='aircraft'),
-        dcc.Tab(label='Engine-wise', value='engine'),
-        dcc.Tab(label='Part Number-wise', value='part_number'),
-    ]),
-    html.Div(id='tabs-content')
+    html.Div([
+        html.H1('Total Revenue Gap Analysis', className='display-4', style={'textAlign': 'center', 'padding': '20px'}),
+    ], className='jumbotron'),
+
+    html.Div([
+        dcc.Tabs(id='tabs', value='customer', children=[
+            dcc.Tab(label='Customer-wise', value='customer', className='custom-tab', selected_className='custom-tab--selected'),
+            dcc.Tab(label='Aircraft-wise', value='aircraft', className='custom-tab', selected_className='custom-tab--selected'),
+            dcc.Tab(label='Engine-wise', value='engine', className='custom-tab', selected_className='custom-tab--selected'),
+            dcc.Tab(label='Part Number-wise', value='part_number', className='custom-tab', selected_className='custom-tab--selected'),
+        ], className='custom-tabs'),
+    ], className='container'),
+
+    html.Div(id='tabs-content', className='container')
 ])
 
 @app.callback(Output('tabs-content', 'children'),
@@ -253,9 +287,141 @@ def render_content(tab):
         title = 'Total Revenue Gap per Part Number'
     else:
         return html.Div('Tab not found.')
-    
+
     fig = create_bar_chart(df, label_column, title)
     return dcc.Graph(figure=fig)
 
 if __name__ == '__main__':
     app.run_server(debug=True)
+
+Explanation of Changes
+
+1. Bar Charts Changed to Horizontal Bars
+
+    In the create_bar_chart function, I set orientation='h' in px.bar().
+    Swapped the x and y parameters to x='total_revenue_gap' and y=label_column.
+
+2. Improved Aesthetics in Bar Charts
+
+    Set the default template to plotly_white using px.defaults.template.
+    Adjusted the figure height with px.defaults.height = 600.
+    Customized the layout in fig.update_layout():
+        Set yaxis category order to 'total ascending' to sort bars from highest to lowest.
+        Formatted xaxis tick labels as currency with xaxis_tickformat='$,'.
+        Adjusted margins to accommodate longer labels on the y-axis.
+        Set background color to transparent.
+        Customized the hover mode.
+    Customized the traces in fig.update_traces():
+        Added a hover template with formatted values.
+        Set the bar color with marker_color='indianred'.
+        Added text labels on the bars with dollar amounts.
+        Positioned text labels outside the bars.
+        Set cliponaxis=False to prevent text labels from being cut off.
+
+3. Enhanced App Title and Tabs
+
+    Imported an external stylesheet from Bootstrap to enhance the styling (external_stylesheets parameter in Dash).
+    Styled the app title using Bootstrap classes (className='display-4' and className='jumbotron') and added padding.
+    Customized the tabs by adding classes (className and selected_className) to style them.
+    Wrapped the main content in Bootstrap containers (className='container') for better layout.
+
+4. Added Custom CSS for Tabs
+
+    Included a reference to a custom CSS file in the external_stylesheets list.
+    Create an assets folder in your project directory.
+    Inside the assets folder, create a file named styles.css with the following content:
+
+css
+
+/* assets/styles.css */
+
+/* Custom styles for tabs */
+.custom-tabs {
+    margin: 0 auto;
+}
+
+.custom-tab {
+    background-color: #f9f9f9;
+    border: 1px solid #d6d6d6;
+    padding: 10px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.custom-tab--selected {
+    background-color: #fff;
+    border-bottom: none;
+    color: #000;
+}
+
+.custom-tab:hover {
+    background-color: #e9e9e9;
+    cursor: pointer;
+}
+
+5. Adjusted Margins and Font Sizes
+
+    Increased the left margin (l=200) in fig.update_layout() to accommodate longer labels on the y-axis.
+    Adjusted the font size of the y-axis tick labels (yaxis_tickfont_size=10).
+    Ensured that text labels on the bars do not overlap by setting cliponaxis=False.
+
+How to Run the Updated App
+
+    Create the assets Folder and CSS File
+        In your project directory (where your script is located), create a folder named assets.
+        Inside the assets folder, create a file named styles.css and paste the CSS code provided.
+
+    Install Required Libraries
+
+    Ensure you have the necessary Python packages installed:
+
+    bash
+
+pip install dash plotly pandas stardog
+
+Run the App
+
+Run the script as before:
+
+bash
+
+    python app.py
+
+    View the App
+
+    Open your web browser and navigate to http://127.0.0.1:8050/ to view the app.
+
+Additional Customizations (Optional)
+
+Adjusting Figure Size for Data Volume
+
+If your data contains many entries, you might want to adjust the figure height dynamically based on the number of records to ensure labels are readable.
+
+python
+
+def create_bar_chart(df, label_column, title):
+    # Calculate dynamic height
+    bar_height = 20  # Height per bar in pixels
+    max_height = 800  # Maximum figure height
+    height = min(max_height, bar_height * len(df) + 200)  # Additional space for margins
+
+    # Set default template and height
+    px.defaults.template = "plotly_white"
+    fig = px.bar(
+        df,
+        x='total_revenue_gap',
+        y=label_column,
+        orientation='h',
+        labels={'total_revenue_gap': 'Total Revenue Gap', label_column: label_column.replace('_', ' ').title()},
+        title=title,
+        height=height,
+    )
+    # Rest of the function remains the same...
+
+Filtering Options
+
+You can add dropdowns or sliders to filter the data dynamically.
+
+Deploying the App
+
+Consider deploying your app using services like Heroku or Dash Enterprise to make it accessible to others.
