@@ -1,1 +1,275 @@
+1. Ensure All Customer Names Are Shown on the Vertical Axis
 
+When plotting a large number of categories (customer names), Plotly might not display all labels by default to prevent overcrowding. We can adjust the figure's height to ensure all labels are visible.
+Code Modification
+
+python
+
+import plotly.express as px
+
+# Assuming 'df_top' contains all your data
+df_top = df.copy()
+
+# Sort data by 'total_revenue_gap' in descending order
+df_top = df_top.sort_values('total_revenue_gap', ascending=False)
+
+# Calculate height based on the number of customer names
+bar_height = 20  # Height of each bar in pixels
+max_height = 1000  # Maximum height in pixels
+height = min(max_height, bar_height * len(df_top))
+
+fig = px.bar(
+    df_top,
+    x='total_revenue_gap',
+    y='customer_name',
+    orientation='h',
+    labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name': 'Customer Name'},
+    title='Total Revenue Gap per Customer',
+    height=height  # Set the figure height
+)
+
+# Update layout to order y-axis labels by total_revenue_gap
+fig.update_layout(
+    yaxis={'categoryorder': 'total ascending'},
+    xaxis_tickformat='$,',  # Format x-axis labels as currency
+    yaxis_tickfont_size=10,  # Adjust y-axis font size if needed
+)
+
+fig.show()
+
+Explanation:
+
+    Dynamic Height Calculation: We calculate the figure's height based on the number of customers, ensuring that each bar has enough space.
+    height Parameter: Setting the height parameter in px.bar() adjusts the figure's height.
+    Adjusting Font Size: If labels are still overlapping, you can reduce the yaxis_tickfont_size.
+
+2. Adjust the Plot to Be More Vertical
+
+If you prefer a vertical bar chart, we can swap the axes.
+Code for Vertical Bar Chart
+
+python
+
+fig = px.bar(
+    df_top,
+    x='customer_name',
+    y='total_revenue_gap',
+    labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name': 'Customer Name'},
+    title='Total Revenue Gap per Customer',
+    height=600  # Adjust height as needed
+)
+
+# Update layout
+fig.update_layout(
+    xaxis={'categoryorder': 'total descending'},
+    yaxis_tickformat='$,',  # Format y-axis labels as currency
+    xaxis_tickangle=-45,    # Rotate x-axis labels if they are too long
+    xaxis_tickfont_size=10, # Adjust font size
+)
+
+fig.show()
+
+Explanation:
+
+    Orientation Change: By default, Plotly creates vertical bar charts. We removed the orientation='h' parameter.
+    Rotating Labels: For long customer names, rotating the x-axis labels helps prevent overlap.
+    Adjusting Height: Set an appropriate height for the figure.
+
+3. Open the Plot in a Different Window
+
+To view the plot in a separate browser window or tab, you can save the figure as an HTML file and open it in your web browser.
+Code to Save Plot as HTML and Open in Browser
+
+python
+
+# Save the figure as an HTML file
+fig.write_html('total_revenue_gap_per_customer.html')
+
+# Open the HTML file in the default web browser
+import webbrowser
+webbrowser.open('total_revenue_gap_per_customer.html')
+
+Note: This will save the interactive plot to an HTML file and open it in your default web browser, allowing for better interactivity and viewing experience.
+4. Improve Aesthetics and Interactivity
+
+Plotly allows for extensive customization. Here are some suggestions:
+
+    Add Hover Information: Include more details in the hover tooltip.
+    Customize Colors: Use color scales or specific colors.
+    Enhance Layout: Adjust margins, fonts, and backgrounds.
+    Enable Zoom and Pan: These are enabled by default in Plotly.
+
+Enhanced Code with Customizations
+
+python
+
+import plotly.express as px
+import plotly.io as pio
+import webbrowser
+
+# Set default template
+pio.templates.default = "plotly_white"
+
+# Create the bar chart
+fig = px.bar(
+    df_top,
+    x='customer_name' if 'customer_name' in df_top.columns else 'Customer Name',
+    y='total_revenue_gap',
+    labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name': 'Customer Name'},
+    title='Total Revenue Gap per Customer',
+    height=600
+)
+
+# Customize layout
+fig.update_layout(
+    xaxis={'categoryorder': 'total descending'},
+    yaxis_tickformat='$,',
+    xaxis_tickangle=-45,
+    xaxis_tickfont_size=10,
+    title_font_size=20,
+    plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
+    hovermode='x unified',
+    margin=dict(l=50, r=50, t=80, b=150),  # Adjust margins
+)
+
+# Add hover template for detailed information
+fig.update_traces(
+    hovertemplate='<b>%{x}</b><br>Total Revenue Gap: $%{y:,.2f}<extra></extra>',
+    marker_color='indianred'  # Customize bar color
+)
+
+# Save and open in browser
+fig.write_html('total_revenue_gap_per_customer.html')
+webbrowser.open('total_revenue_gap_per_customer.html')
+
+Explanation:
+
+    Template: Using plotly_white template for a clean look.
+    Transparent Background: Set plot_bgcolor to make the plot background transparent.
+    Hover Template: Customized hover information with detailed formatting.
+    Margins: Adjusted margins to prevent label cutoff.
+    Marker Color: Customized bar color.
+
+5. Handling Long Customer Names
+
+Long customer names can cause overlapping or cluttered x-axis labels. Here are some strategies:
+
+    Rotate Labels: We already rotated x-axis labels by -45 degrees.
+    Wrap Text: Plotly doesn't support automatic text wrapping, but we can manually insert line breaks.
+
+Inserting Line Breaks in Labels
+
+python
+
+# Function to insert line breaks into long customer names
+def wrap_labels(label):
+    return '<br>'.join(label.split())
+
+# Apply the function to the 'customer_name' column
+df_top['customer_name_wrapped'] = df_top['customer_name'].apply(wrap_labels)
+
+# Update the figure to use wrapped labels
+fig = px.bar(
+    df_top,
+    x='customer_name_wrapped',
+    y='total_revenue_gap',
+    labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name_wrapped': 'Customer Name'},
+    title='Total Revenue Gap per Customer',
+    height=600
+)
+
+# Rest of the code remains the same...
+
+Note: Be cautious with this approach, as it may not always produce the desired effect, especially if customer names are very long.
+6. Interactive Filtering and Sorting
+
+For large datasets, adding interactive filters can enhance usability.
+Using Plotly Dash (Advanced)
+
+If you want to create an interactive dashboard with filtering capabilities, consider using Plotly Dash.
+
+Here's a basic outline (not fully functional within a notebook):
+
+python
+
+# Install Dash if you haven't already
+!pip install dash
+
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output
+
+# Create a Dash app
+app = dash.Dash(__name__)
+
+# Layout of the app
+app.layout = html.Div([
+    dcc.Dropdown(
+        id='customer-dropdown',
+        options=[{'label': name, 'value': name} for name in df_top['customer_name'].unique()],
+        multi=True,
+        placeholder='Select customers...'
+    ),
+    dcc.Graph(id='revenue-gap-graph')
+])
+
+# Callback to update the graph
+@app.callback(
+    Output('revenue-gap-graph', 'figure'),
+    [Input('customer-dropdown', 'value')]
+)
+def update_graph(selected_customers):
+    if selected_customers is None or len(selected_customers) == 0:
+        filtered_df = df_top
+    else:
+        filtered_df = df_top[df_top['customer_name'].isin(selected_customers)]
+    
+    fig = px.bar(
+        filtered_df,
+        x='customer_name',
+        y='total_revenue_gap',
+        labels={'total_revenue_gap': 'Total Revenue Gap', 'customer_name': 'Customer Name'},
+        title='Total Revenue Gap per Customer'
+    )
+    fig.update_layout(
+        xaxis={'categoryorder': 'total descending'},
+        yaxis_tickformat='$,',
+        xaxis_tickangle=-45
+    )
+    return fig
+
+# Run the app
+if __name__ == '__main__':
+    app.run_server(debug=True)
+
+Note: Dash applications are run as standalone web apps and are not directly executed within a notebook cell. This approach requires running the script in a separate Python environment.
+
+#######################################################
+
+Applying These Changes to Other Queries
+
+You can apply similar modifications to your aircraft-wise, part number-wise, and engine-wise queries. Just replace the DataFrame df with the corresponding DataFrame for each query (e.g., df_aircraft, df_part_number, df_engine) and adjust the labels accordingly.
+
+Example for Aircraft-wise Data:
+
+python
+
+# Assume df_aircraft is your DataFrame for aircraft data
+
+# Sort data
+df_aircraft = df_aircraft.sort_values('total_revenue_gap', ascending=False)
+
+# Calculate dynamic height
+height = min(max_height, bar_height * len(df_aircraft))
+
+# Create the bar chart
+fig = px.bar(
+    df_aircraft,
+    x='aircraft_model_name',
+    y='total_revenue_gap',
+    labels={'total_revenue_gap': 'Total Revenue Gap', 'aircraft_model_name': 'Aircraft Model Name'},
+    title='Total Revenue Gap per Aircraft Model',
+    height=height
+)
+
+# Rest of the code remains the same...
