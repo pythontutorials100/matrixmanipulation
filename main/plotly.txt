@@ -1,0 +1,352 @@
+app.title = "PNC Revenue Gap Analysis"
+
+html.H1('PNC Revenue Gap Analysis', className='display-4', style={'textAlign': 'center', 'padding': '20px'}),
+
+
+def create_bar_chart(df, label_column, title):
+    # Set default template
+    px.defaults.template = "plotly_white"
+    px.defaults.height = 600  # Adjust height as needed
+
+    # Create the horizontal bar chart
+    fig = px.bar(
+        df,
+        x='total_revenue_gap',
+        y=label_column,
+        orientation='h',  # Ensure bars are horizontal
+        labels={
+            'total_revenue_gap': 'Total Revenue Gap',
+            label_column: label_column.replace('_', ' ').title()
+        },
+        title=title,
+    )
+
+    # Customize layout
+    fig.update_layout(
+        yaxis={'categoryorder': 'total ascending'},
+        xaxis_tickformat='$,',
+        yaxis_tickfont_size=10,
+        title_font_size=20,
+        plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
+        hovermode='y unified',
+        margin=dict(l=200, r=50, t=80, b=50),  # Adjust margins for labels
+    )
+
+    # Add hover template and text labels
+    fig.update_traces(
+        hovertemplate='<b>%{y}</b><br>Total Revenue Gap: $%{x:,.2f}<extra></extra>',
+        marker_color='indianred',  # Customize bar color
+        text=df['total_revenue_gap'].apply(lambda x: f"${x:,.2f}"),
+        textposition='outside',
+        textfont_size=10,
+        cliponaxis=False,  # Ensure text labels are visible
+    )
+
+    return fig
+
+
+    ######################full
+
+
+import stardog
+import pandas as pd
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output
+import plotly.express as px
+
+# Connection details
+conn_details = {
+    'endpoint': 'http://localhost:5820',  # Replace with your Stardog endpoint
+    'username': 'admin',                  # Replace with your Stardog username
+    'password': 'admin'                   # Replace with your Stardog password
+}
+
+database_name = 'your_database_name'  # Replace with your Stardog database name
+
+def execute_query(query, label_column):
+    with stardog.Connection(database_name, **conn_details) as conn:
+        results = conn.select(query)
+    
+    data = results
+    variables = data['head']['vars']
+    bindings = data['results']['bindings']
+    rows = []
+
+    for binding in bindings:
+        row = {}
+        for var in variables:
+            if var in binding:
+                value = binding[var]['value']
+                # Convert numerical values
+                if binding[var]['type'] == 'literal' and 'datatype' in binding[var]:
+                    datatype = binding[var]['datatype']
+                    if datatype in (
+                        'http://www.w3.org/2001/XMLSchema#decimal',
+                        'http://www.w3.org/2001/XMLSchema#float',
+                        'http://www.w3.org/2001/XMLSchema#double',
+                        'http://www.w3.org/2001/XMLSchema#integer',
+                        'http://www.w3.org/2001/XMLSchema#int',
+                    ):
+                        value = float(value)
+                row[var] = value
+            else:
+                row[var] = None
+        rows.append(row)
+    
+    df = pd.DataFrame(rows)
+    df['total_revenue_gap'] = pd.to_numeric(df['total_revenue_gap'])
+    df = df.sort_values('total_revenue_gap', ascending=False)
+    return df
+
+def get_customer_data():
+    query = """
+    PREFIX : <http://api.stardog.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    SELECT ?customer_name (ROUND(SUM(?revenue_gap_value) * 1000) / 1000 AS ?total_revenue_gap)
+    WHERE {
+      # Retrieve the IBE that contains the customer name
+      ?ibe_cust :has_text_value ?customer_name .
+      ?designative_name_customer :generically_depends_on ?ibe_cust .
+      ?designative_name_customer :designates ?customer .
+      ?customer rdf:type :Customer_Organization .
+
+      # Retrieve the revenue gap associated with the customer
+      ?revenue_gap :is_about ?customer .
+
+      # Retrieve the measurement of the revenue gap
+      ?measurement :is_measurement_of ?revenue_gap .
+      ?measurement :generically_depends_on ?ibe_rev_gap_value .
+
+      # Get the revenue gap value
+      ?ibe_rev_gap_value :has_decimal_value ?revenue_gap_value_literal .
+      BIND(xsd:decimal(?revenue_gap_value_literal) AS ?revenue_gap_value)
+    }
+    GROUP BY ?customer_name
+    ORDER BY DESC(?total_revenue_gap)
+    """
+    return execute_query(query, 'customer_name')
+
+def get_aircraft_data():
+    query = """
+    PREFIX : <http://api.stardog.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    SELECT ?aircraft_model_name (ROUND(SUM(?revenue_gap_value) * 1000) / 1000 AS ?total_revenue_gap)
+    WHERE {
+      {
+        SELECT DISTINCT ?aircraft_model_name ?revenue_gap ?revenue_gap_value
+        WHERE {
+          # Ensure we're dealing with aircraft models
+          ?artifact_identifier_aircraft_model rdf:type :Designative_Information_Content_Entity .
+          ?artifact_identifier_aircraft_model :designates ?aircraft_model .
+          ?aircraft_model rdf:type :Artifact_Model .
+          ?artifact_identifier_aircraft_model :generically_depends_on ?ibe_aircraft_model .
+          ?ibe_aircraft_model :has_text_value ?aircraft_model_name .
+          FILTER(STRSTARTS(STR(?aircraft_model), STR(:aircraft_model_)))
+
+          # Aircraft model prescribes part aggregates
+          ?aircraft_model :prescribes ?part_aggregate .
+
+          # Part aggregate bears revenue gaps
+          ?part_aggregate :bearer_of ?revenue_gap .
+
+          # Retrieve the measurement of the revenue gap
+          ?measurement :is_measurement_of ?revenue_gap .
+          ?measurement :generically_depends_on ?ibe_rev_gap_value .
+
+          # Get the revenue gap value
+          ?ibe_rev_gap_value :has_decimal_value ?revenue_gap_value_literal .
+          BIND(xsd:decimal(?revenue_gap_value_literal) AS ?revenue_gap_value)
+        }
+      }
+    }
+    GROUP BY ?aircraft_model_name
+    ORDER BY DESC(?total_revenue_gap)
+    """
+    return execute_query(query, 'aircraft_model_name')
+
+def get_engine_data():
+    query = """
+    PREFIX : <http://api.stardog.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    SELECT ?engine_model_name (ROUND(SUM(?revenue_gap_value) * 1000) / 1000 AS ?total_revenue_gap)
+    WHERE {
+      {
+        SELECT DISTINCT ?engine_model_name ?revenue_gap ?revenue_gap_value
+        WHERE {
+          # Ensure we're dealing with engine models
+          ?artifact_identifier_engine_model rdf:type :Designative_Information_Content_Entity .
+          ?artifact_identifier_engine_model :designates ?engine_model .
+          ?engine_model rdf:type :Artifact_Model .
+          ?artifact_identifier_engine_model :generically_depends_on ?ibe_engine_model .
+          ?ibe_engine_model :has_text_value ?engine_model_name .
+          FILTER(STRSTARTS(STR(?engine_model), STR(:engine_model_)))
+
+          # Exclude "N/A" values
+          FILTER(?engine_model_name != "N/A" && ?engine_model_name != "")
+
+          # Engine model prescribes part aggregates
+          ?engine_model :prescribes ?part_aggregate .
+
+          # Part aggregate bears revenue gaps
+          ?part_aggregate :bearer_of ?revenue_gap .
+
+          # Retrieve the measurement of the revenue gap
+          ?measurement :is_measurement_of ?revenue_gap .
+          ?measurement :generically_depends_on ?ibe_rev_gap_value .
+
+          # Get the revenue gap value
+          ?ibe_rev_gap_value :has_decimal_value ?revenue_gap_value_literal .
+          BIND(xsd:decimal(?revenue_gap_value_literal) AS ?revenue_gap_value)
+        }
+      }
+    }
+    GROUP BY ?engine_model_name
+    ORDER BY DESC(?total_revenue_gap)
+    """
+    return execute_query(query, 'engine_model_name')
+
+def get_part_number_data():
+    query = """
+    PREFIX : <http://api.stardog.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    SELECT ?part_number (ROUND(SUM(?revenue_gap_value) * 1000) / 1000 AS ?total_revenue_gap)
+    WHERE {
+      {
+        SELECT DISTINCT ?part_number ?revenue_gap ?revenue_gap_value
+        WHERE {
+          # Ensure we're dealing with part models
+          ?artifact_identifier_part_model rdf:type :Designative_Information_Content_Entity .
+          ?artifact_identifier_part_model :designates ?part_model .
+          ?part_model rdf:type :Artifact_Model .
+          ?artifact_identifier_part_model :generically_depends_on ?ibe_part_model .
+          ?ibe_part_model :has_text_value ?part_number .
+          FILTER(STRSTARTS(STR(?part_model), STR(:part_model_)))
+
+          # Part model prescribes part aggregates
+          ?part_model :prescribes ?part_aggregate .
+
+          # Part aggregate bears revenue gaps
+          ?part_aggregate :bearer_of ?revenue_gap .
+
+          # Retrieve the measurement of the revenue gap
+          ?measurement :is_measurement_of ?revenue_gap .
+          ?measurement :generically_depends_on ?ibe_rev_gap_value .
+
+          # Get the revenue gap value
+          ?ibe_rev_gap_value :has_decimal_value ?revenue_gap_value_literal .
+          BIND(xsd:decimal(?revenue_gap_value_literal) AS ?revenue_gap_value)
+        }
+      }
+    }
+    GROUP BY ?part_number
+    ORDER BY DESC(?total_revenue_gap)
+    """
+    return execute_query(query, 'part_number')
+
+def create_bar_chart(df, label_column, title):
+    # Set default template
+    px.defaults.template = "plotly_white"
+    px.defaults.height = 600  # Adjust height as needed
+
+    # Create the horizontal bar chart
+    fig = px.bar(
+        df,
+        x='total_revenue_gap',
+        y=label_column,
+        orientation='h',  # Ensure bars are horizontal
+        labels={
+            'total_revenue_gap': 'Total Revenue Gap',
+            label_column: label_column.replace('_', ' ').title()
+        },
+        title=title,
+    )
+
+    # Customize layout
+    fig.update_layout(
+        yaxis={'categoryorder': 'total ascending'},
+        xaxis_tickformat='$,',
+        yaxis_tickfont_size=10,
+        title_font_size=20,
+        plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
+        hovermode='y unified',
+        margin=dict(l=200, r=50, t=80, b=50),  # Adjust margins for labels
+    )
+
+    # Add hover template and text labels
+    fig.update_traces(
+        hovertemplate='<b>%{y}</b><br>Total Revenue Gap: $%{x:,.2f}<extra></extra>',
+        marker_color='indianred',  # Customize bar color
+        text=df['total_revenue_gap'].apply(lambda x: f"${x:,.2f}"),
+        textposition='outside',
+        textfont_size=10,
+        cliponaxis=False,  # Ensure text labels are visible
+    )
+
+    return fig
+
+# External stylesheets (e.g., Bootstrap)
+external_stylesheets = [
+    'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css',
+    '/assets/styles.css'  # Reference to your custom CSS file
+]
+
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+server = app.server  # For deployment
+
+# Update app title
+app.title = "PNC Revenue Gap Analysis"
+
+app.layout = html.Div([
+    html.Div([
+        html.H1('PNC Revenue Gap Analysis', className='display-4', style={'textAlign': 'center', 'padding': '20px'}),
+    ], className='jumbotron'),
+
+    html.Div([
+        dcc.Tabs(id='tabs', value='customer', children=[
+            dcc.Tab(label='Customer-wise', value='customer', className='custom-tab', selected_className='custom-tab--selected'),
+            dcc.Tab(label='Aircraft-wise', value='aircraft', className='custom-tab', selected_className='custom-tab--selected'),
+            dcc.Tab(label='Engine-wise', value='engine', className='custom-tab', selected_className='custom-tab--selected'),
+            dcc.Tab(label='Part Number-wise', value='part_number', className='custom-tab', selected_className='custom-tab--selected'),
+        ], className='custom-tabs'),
+    ], className='container'),
+
+    html.Div(id='tabs-content', className='container')
+])
+
+@app.callback(Output('tabs-content', 'children'),
+              Input('tabs', 'value'))
+def render_content(tab):
+    if tab == 'customer':
+        df = get_customer_data()
+        label_column = 'customer_name'
+        title = 'Total Revenue Gap per Customer'
+    elif tab == 'aircraft':
+        df = get_aircraft_data()
+        label_column = 'aircraft_model_name'
+        title = 'Total Revenue Gap per Aircraft Model'
+    elif tab == 'engine':
+        df = get_engine_data()
+        label_column = 'engine_model_name'
+        title = 'Total Revenue Gap per Engine Model'
+    elif tab == 'part_number':
+        df = get_part_number_data()
+        label_column = 'part_number'
+        title = 'Total Revenue Gap per Part Number'
+    else:
+        return html.Div('Tab not found.')
+
+    fig = create_bar_chart(df, label_column, title)
+    return dcc.Graph(figure=fig)
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
+
+########debug
+
+def create_bar_chart(df, label_column, title):
+    print("Creating horizontal bar chart")
+    print(f"x-axis: total_revenue_gap, y-axis: {label_column}, orientation: 'h'")
+    # Rest of the function...
+
+
